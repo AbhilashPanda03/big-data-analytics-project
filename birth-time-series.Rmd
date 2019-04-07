@@ -1,0 +1,91 @@
+---
+title: "Time Series Analysis to forecast New York birth rates"
+output: html_notebook
+---
+
+```{r}
+births <- scan("http://robjhyndman.com/tsdldata/data/nybirths.dat")
+```
+
+```{r}
+birthstimeseries <- ts(births, frequency=12, start=c(1946,1))
+birthstimeseries
+```
+```{r}
+plot.ts(birthstimeseries)
+```
+
+```{r}
+birthstimeseriescomponents <- decompose(birthstimeseries)
+```
+```{r}
+birthstimeseriescomponents$seasonal
+```
+```{r}
+birthstimeseriescomponents$trend
+```
+```{r}
+birthstimeseriescomponents$random
+```
+```{r}
+plot(birthstimeseriescomponents)
+```
+
+```{r}
+birthstimeseriescomponents <- decompose(birthstimeseries)
+birthstimeseriesseasonallyadjusted <- birthstimeseries - birthstimeseriescomponents$seasonal
+```
+
+```{r}
+plot(birthstimeseriesseasonallyadjusted)
+```
+
+```{r}
+birthtimeseriesforecasts<-HoltWinters(birthstimeseries)
+birthtimeseriesforecasts
+```
+```{r}
+birthtimeseriesforecasts$SSE
+```
+
+```{r}
+plot(birthtimeseriesforecasts)
+```
+```{r}
+birthtimeseriesforecasts2<-forecast(birthtimeseriesforecasts,h=48)
+plot(birthtimeseriesforecasts2)
+```
+```{r}
+acf(birthtimeseriesforecasts2$residuals,lag.max=20,na.action = na.pass)
+Box.test(birthtimeseriesforecasts2$residuals,lag=20,type="Ljung-Box")
+```
+
+```{r}
+plotForecastErrors <- function(forecasterrors)
+{
+  # make a histogram of the forecast errors:
+  mybinsize <- IQR(forecasterrors,na.rm=TRUE)/4
+  mysd   <- sd(forecasterrors,na.rm=TRUE)
+  mymin  <- min(forecasterrors,na.rm=TRUE) - mysd*5
+  mymax  <- max(forecasterrors,na.rm=TRUE) + mysd*3
+  # generate normally distributed data with mean 0 and standard deviation mysd
+  mynorm <- rnorm(10000, mean=0, sd=mysd)
+  mymin2 <- min(mynorm)
+  mymax2 <- max(mynorm)
+  if (mymin2 < mymin) { mymin <- mymin2 }
+  if (mymax2 > mymax) { mymax <- mymax2 }
+  # make a red histogram of the forecast errors, with the normally distributed data overlaid:
+  mybins <- seq(mymin, mymax, mybinsize)
+  hist(forecasterrors, col="red", freq=FALSE, breaks=mybins)
+  # freq=FALSE ensures the area under the histogram = 1
+  # generate normally distributed data with mean 0 and standard deviation mysd
+  myhist <- hist(mynorm, plot=FALSE, breaks=mybins)
+  # plot the normal curve as a blue line on top of the histogram of forecast errors:
+  points(myhist$mids, myhist$density, type="l", col="blue", lwd=2)
+}
+```
+
+```{r}
+plotForecastErrors(birthtimeseriesforecasts2$residuals)
+```
+
